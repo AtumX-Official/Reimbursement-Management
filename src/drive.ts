@@ -2,7 +2,11 @@ import type { User } from 'firebase/auth';
 import { prepareReceipt } from '@/receipt';
 
 // Web app URL of apps-script/Code.gs, which saves proofs into the shared Google Drive folder.
-const UPLOAD_URL = import.meta.env.VITE_DRIVE_UPLOAD_URL as string | undefined;
+// Not a secret (it ships in the page anyway, and the script checks the user's sign-in), so it is
+// built in here; VITE_DRIVE_UPLOAD_URL can override it for a different deployment.
+const DEFAULT_UPLOAD_URL =
+  'https://script.google.com/macros/s/AKfycbwDrAoEfGXWsN57XHPyKacMReD6gIc1awFfn5pFBtodQ1Q6lrBIua6_68xj_rLrz6YGBg/exec';
+const UPLOAD_URL = (import.meta.env.VITE_DRIVE_UPLOAD_URL as string | undefined) || DEFAULT_UPLOAD_URL;
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 
