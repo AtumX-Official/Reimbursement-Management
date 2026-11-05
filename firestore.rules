@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Keep in sync with ADMIN_EMAIL in src/roles.ts.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email == 'info@atumx.in'
+        && request.auth.token.email_verified == true;
+    }
+
+    // Any signed-in Google account with a verified email. Keep in sync with isAllowed in src/roles.ts.
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true;
+    }
+
+    // One profile per member holding their bank details. Only the member and the admin can read it.
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+      allow read: if isAdmin();
+    }
+
+    // Members file claims for themselves (always pending) and can withdraw them while still pending.
+    // Only the admin can approve, reject or mark them paid.
+    match /reimbursements/{id} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update: if isAdmin();
+      allow delete: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid && resource.data.status == 'pending');
+    }
+
+    // Bill/receipt files, stored apart from the claim so claim lists stay small. Same id as the claim.
+    match /reimbursementReceipts/{id} {
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow delete: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+    }
+  }
+}
